@@ -64,10 +64,11 @@ Dove le due versioni differivano, la scelta:
 | Cartella | `create_private(…, directory=True)`, base obbligatoria | `_private_tmpdir(prefix, base=None)` = `tempfile.gettempdir()` | `private_tmpdir(prefix, base=None)` | una funzione per i file, una per le cartelle, nessun flag |
 | Windows | 0600 vale solo come attributo «sola lettura» | idem | `create_private` e `private_tmpdir` impostano la lista d'accesso: una voce, l'utente, controllo totale, niente ereditato (sulla cartella ereditabile, `OICI`) | regola di Roberto 24/11: su Windows l'equivalente dei permessi POSIX è la ACL; viene da `owner_only` di cryptovalid |
 | Errori dopo l'apertura | non c'erano passi dopo | idem | se la ACL non si imposta: descrittore chiuso, file o cartella rimossi, errore rilanciato | il descrittore si chiude negli errori |
+| Nome già preso, su Windows | `O_EXCL` | idem | anche `lexists` prima di aprire | lì `O_CREAT\|O_EXCL` su un link verso il nulla crea il file a cui punta, e una cartella al nome è `PermissionError` (misurato nella prima CI, run 45583189095, Python 3.9–3.14); il nome ha 64 bit casuali, fra il controllo e l'apertura non è prevedibile |
 | Prefisso/suffisso | non controllati | idem | un separatore o un NUL → `ValueError`, niente creato; su Windows anche un nome che il sistema riserva (i due punti, un jolly, un carattere di controllo, punto o spazio finale, un nome di dispositivo prima del primo punto) | `tempfile.mkstemp(prefix="sub/")` crea in un'altra cartella (misurato nel test); su Windows `os.path.join("D:\\dir", "C:nome")` è `C:nome` (la cartella sparisce), `a:nome` è un flusso del file `a`, `NUL.x` è il dispositivo NUL prima di Windows 11; le regole sono quelle di `ntpath.isreserved` di Python 3.13, confrontate nel test su nomi generati |
 
 Mutante sopravvissuto e perché: togliere `O_NOFOLLOW` non fa fallire nessun test, perché con `O_CREAT|O_EXCL`
-l'apertura rifiuta già un link nel punto del nome (POSIX lo richiede). Resta come seconda cintura, dichiarata.
+l'apertura rifiuta già un link nel punto del nome (POSIX lo richiede; Windows non conosce `O_NOFOLLOW`, vedi sopra). Resta come seconda cintura, dichiarata.
 
 ## json_loads_bounded — `nucleo/jsonio.py`
 

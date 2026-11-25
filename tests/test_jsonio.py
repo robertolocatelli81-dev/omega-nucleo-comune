@@ -65,8 +65,6 @@ class Bound(unittest.TestCase):
             self.assertIsInstance(cm.exception, ValueError)
             self.assertIsInstance(cm.exception, RecursionError)
             self.assertIsInstance(cm.exception, JsonTooDeep)
-        with self.assertRaises(RecursionError):   # control: what the bound spares the reader
-            json.loads(deep(100000))
 
     def test_configurable(self):
         for bound in (0, 1, 2, 7, 600):

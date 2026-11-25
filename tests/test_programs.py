@@ -77,7 +77,7 @@ class NeverTheProgramOfTheCurrentFolder(_InTmp):
             planted = shutil.which("openssl")
             self.assertFalse(os.path.isabs(planted), planted)   # positive control: shutil.which names the planted one
             self.assertEqual(os.path.normcase(which_absolute("openssl")), os.path.normcase(good))
-        with mock.patch.dict(os.environ, {"PATH": "" if os.name == "nt" else os.pathsep}):
+        with mock.patch.dict(os.environ, {"PATH": os.path.join(self.d, "nobody") if os.name == "nt" else os.pathsep}):
             self.assertIsNotNone(shutil.which("openssl"))     # control: the planted one only
             self.assertIsNone(which_absolute("openssl"))
 
@@ -121,9 +121,11 @@ class NeverTheProgramOfTheCurrentFolder(_InTmp):
         with mock.patch.dict(os.environ, {"PATH": os.pathsep}):
             os.chdir(self.d)
             _program(os.path.join(self.d, "sub"), "x")
-            self.assertIsNotNone(shutil.which(os.path.join("sub", "x")))   # control: shutil.which takes a path
+            # control: shutil.which takes a path (on Windows up to Python 3.11 with its extension written)
+            path = os.path.join("sub", "x.exe" if os.name == "nt" else "x")
+            self.assertIsNotNone(shutil.which(path))
             with self.assertRaises(ValueError):
-                which_absolute(os.path.join("sub", "x"))
+                which_absolute(path)
 
 
 class RunProgram(_InTmp):
@@ -180,7 +182,7 @@ class RunProgram(_InTmp):
     def test_the_program_of_the_current_folder_is_not_run(self):
         _program(self.d, "nucleo-planted")
         os.chdir(self.d)
-        with mock.patch.dict(os.environ, {"PATH": "" if os.name == "nt" else os.pathsep}):
+        with mock.patch.dict(os.environ, {"PATH": os.path.join(self.d, "nobody") if os.name == "nt" else os.pathsep}):
             with self.assertRaises(FileNotFoundError):
                 run_program(["nucleo-planted"], env=self._env(), timeout=10)
 
@@ -298,7 +300,7 @@ class RunProgramRunsWhatWasFound(_InTmp):
         env = {"PATH": os.curdir}
         if os.name == "nt":
             env["SystemRoot"] = os.environ["SystemRoot"]
-        with mock.patch.dict(os.environ, {"PATH": "" if os.name == "nt" else os.pathsep}):
+        with mock.patch.dict(os.environ, {"PATH": os.path.join(self.d, "nobody") if os.name == "nt" else os.pathsep}):
             with self.assertRaises(FileNotFoundError):
                 run_program(["nucleo-planted"], env=env, timeout=10)
 

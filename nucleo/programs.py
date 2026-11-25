@@ -7,6 +7,7 @@ which_absolute comes from cryptovalid `verifier.which` (commit f7883c9, verifier
 changes written in DIFFERENZE.md: the name must be a bare program name, on Windows a name that already ends with
 an extension of PATHEXT is looked up as it is (as shutil.which does), and there an absolute path names its drive."""
 import os
+import posixpath
 import re
 import shutil
 import subprocess
@@ -34,7 +35,7 @@ def _is_absolute(path: str, windows: Optional[bool] = None) -> bool:
     absolute before 3.13 and relative from 3.13, splitdrive finds a share in `\\\\server` from 3.11 and not in 3.9."""
     if os.name == "nt" if windows is None else windows:
         return _WINDOWS_ABSOLUTE.match(path) is not None
-    return os.path.isabs(path)
+    return posixpath.isabs(path)
 
 
 def which_absolute(name: str) -> Optional[str]:

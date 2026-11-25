@@ -41,8 +41,11 @@ jobs:
           # the path is an argument, not Python source: in a string, the \a of D:\a\_temp (Windows) is the character BEL
           python -c "import sys, urllib.request; urllib.request.urlretrieve('https://www.rfc-editor.org/rfc/rfc8785.txt', sys.argv[1])" "${{ runner.temp }}/rfc8785.txt"
           python -c "import hashlib,sys; h=hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest(); print(h); sys.exit(h != sys.argv[2])" "${{ runner.temp }}/rfc8785.txt" "$RFC8785_SHA256"
+      # the system's own shell: Git's bash on Windows may hand its children privileges that pass over an access list
+      - name: The privileges the tests run with (Windows)
+        if: runner.os == 'Windows'
+        run: whoami /priv
       - name: Tests
-        shell: bash
         env:
           NUCLEO_RFC8785: ${{ runner.temp }}/rfc8785.txt
         run: python -m unittest discover -s tests -v

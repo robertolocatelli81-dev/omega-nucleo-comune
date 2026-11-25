@@ -86,11 +86,13 @@ def _owner_only(path: str, folder: bool) -> None:
 def create_exclusive(folder: str, prefix: str, suffix: str = "", mode: int = 0o600) -> Tuple[int, str]:
     """A new file (fd, path) in `folder` at `prefix` + 16 random hex + `suffix`, opened read-write with
     O_CREAT|O_EXCL|O_NOFOLLOW|O_CLOEXEC|O_BINARY: never a file, link, FIFO or folder already at the name. `mode` less
-    the umask (on Windows a mode only sets the read-only attribute: see create_private). Only FileExistsError is tried
-    again, at most 64 times; any other OSError is raised at once."""
+    the umask (on Windows a mode only sets the read-only attribute: see create_private). Only a name already
+    taken is tried again, at most 64 times; any other OSError is raised at once."""
     _check_name(prefix, suffix)
     for _ in range(TRIES):
         path = os.path.join(folder, prefix + secrets.token_hex(8) + suffix)
+        if os.name == "nt" and os.path.lexists(path):   # O_EXCL there makes the target of a link to nothing, and a folder
+            continue                                    # at the name is a PermissionError (CI run 45583189095)
         try:
             return os.open(path, _FLAGS, mode), path
         except FileExistsError:
