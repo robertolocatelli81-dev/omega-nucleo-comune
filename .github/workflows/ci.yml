@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: Apache-2.0
+# Every branch, every Python from the floor (3.9) to the newest, Linux + macOS + Windows; lint and governance too.
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# a push to a trial branch ends the run of the commit it replaces; every other ref runs to the end
+concurrency:
+  group: ${{ startsWith(github.ref, 'refs/heads/ci-prova-') && github.ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  RFC8785_SHA256: 63d52294eb0e3f0014174288186d388b4ddbf2c67d1ce8af1d9726eb0c3ab240
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os == 'ubuntu' && (matrix.python-version == '3.9' && 'ubuntu-24.04' || 'ubuntu-latest') || format('{0}-latest', matrix.os) }}   # 3.9 has no build for ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu, macos, windows]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: RFC 8785, read at test time (its text is not kept in the repository; sha256 checked)
+        shell: bash
+        run: |
+          # the path is an argument, not Python source: in a string, the \a of D:\a\_temp (Windows) is the character BEL
+          python -c "import sys, urllib.request; urllib.request.urlretrieve('https://www.rfc-editor.org/rfc/rfc8785.txt', sys.argv[1])" "${{ runner.temp }}/rfc8785.txt"
+          python -c "import hashlib,sys; h=hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest(); print(h); sys.exit(h != sys.argv[2])" "${{ runner.temp }}/rfc8785.txt" "$RFC8785_SHA256"
+      - name: Tests
+        shell: bash
+        env:
+          NUCLEO_RFC8785: ${{ runner.temp }}/rfc8785.txt
+        run: python -m unittest discover -s tests -v
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.13"
+      - run: python -m pip install --require-hashes --no-deps -r .github/lint-requirements.txt
+      - run: ruff check .
+      - name: Governance (SPDX on every .py file, no test after unittest.main)
+        run: python tools/check_tests_before_main.py .
+      - name: The core of this commit copies and checks itself
+        run: |
+          mkdir -p "$RUNNER_TEMP/work/pkg"
+          python nucleo_sync.py copy "$RUNNER_TEMP/work" pkg/_nucleo
+          python nucleo_sync.py check "$RUNNER_TEMP/work"

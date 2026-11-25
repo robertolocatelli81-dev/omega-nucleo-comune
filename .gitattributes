@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# bytes as committed on every system: the copies are checked by sha256
+nucleo/** -text
+LICENSE -text
+NOTICE -text

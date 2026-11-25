@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
+target-version = "py39"
+line-length = 125
+
+[lint]
+select = ["E", "F", "W", "B", "S"]
+ignore = ["S101", "S603", "S607", "S311", "B023"]   # asserts in tests; argv lists without a shell; seeded random in tests; loop closures called at once
+
+[lint.per-file-ignores]
+"tests/*" = ["S108", "S110", "B017"]
