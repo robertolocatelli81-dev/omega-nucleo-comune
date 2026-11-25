@@ -90,6 +90,32 @@ class TemporaryNamesOnWindows(unittest.TestCase):
 
 
 class WhatStandsAtTheName(unittest.TestCase):
+    def test_on_windows_the_name_is_looked_at_before_it_is_opened(self):
+        """Windows: O_CREAT|O_EXCL on a link to nothing makes the file the link points to, and a folder at the name is
+        a PermissionError (CI run 45583189095). The Windows branch, run on every system with os.name patched: where
+        anything stands, os.open is not asked at all; at a free name it is asked once."""
+        for kind in ("folder", "dangling"):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as d:
+                p = os.path.join(d, "x-" + "00" * 8)
+                if kind == "folder":
+                    os.mkdir(p)
+                else:
+                    try:
+                        os.symlink(os.path.join(d, "target"), p)
+                    except OSError:
+                        if os.name == "nt":
+                            self.skipTest("Windows without the right to make links (SeCreateSymbolicLinkPrivilege)")
+                        raise
+                with mock.patch.object(secrets, "token_hex", lambda n: "00" * n), \
+                        mock.patch.object(os, "name", "nt"), mock.patch.object(os, "open", side_effect=os.open) as opened:
+                    with self.assertRaises(FileExistsError):
+                        create_exclusive(d, "x-")
+                    opened.assert_not_called()
+                    fd, q = create_exclusive(d, "y-")
+                    self.assertEqual(opened.call_count, 1)
+                os.close(fd)
+                self.assertEqual(sorted(os.listdir(d)), ["x-" + "00" * 8, "y-" + "00" * 8])
+
     def test_never_opened(self):
         """O_EXCL: a file, a link (to a file, to nothing), a folder or a FIFO already at the name is not opened, not
         followed, not written: the name counts as taken (cryptovalid review of 2026-11-25: without O_EXCL the suite

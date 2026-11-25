@@ -4,8 +4,10 @@
 
 From cryptovalid (commit f7883c9, verifier.py: json_nesting_depth, JsonTooDeep, JsonTooDeepToRead,
 json_loads_bounded; SPEC §30), with the bound as a parameter (512 by default, the value of cryptovalid's
-MAX_JSON_DEPTH). A bare json.loads gives up at 995 levels under Python 3.9 and 3.11, 9 999 under 3.13, 65 168 under
-3.14 (measured in cryptovalid f7883c9): with the scan first, one bound on every Python.
+MAX_JSON_DEPTH). A bare json.loads gave up at 995 levels under Python 3.9 and 3.11, 9 999 under 3.13 and 65 168 under
+3.14 on the machine of that measure (cryptovalid f7883c9); under 3.14 the depth is the one the stack of the machine
+allows (100 000 levels were read on Linux and macOS in CI run 45583189095). With the scan first, one bound on every
+Python and every machine.
 
 Under Python 3.9 to 3.11 the parser's levels count against sys.getrecursionlimit(), so a text within the bound was
 still a bare RecursionError when the caller was already deep in its own stack (512 levels from 600 frames down: refused
