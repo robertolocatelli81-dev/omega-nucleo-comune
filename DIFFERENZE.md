@@ -44,6 +44,13 @@ lo comprende; è `run_program` che non lo avvia.
 Nota per Windows: con `env={}` molti programmi non partono (Python stesso chiede `SystemRoot`); spetta al chiamante
 mettere nell'ambiente ciò che serve, per nome.
 
+**Non rilasciato (28/11/2026): un argomento non esce più dall'errore di tempo scaduto.** In v0.1.0 il
+`subprocess.TimeoutExpired` era quello di `subprocess.run`: il suo messaggio ripete l'intero argv, e un argomento può
+essere un segreto (una password, un token, un URL con utente e password dati al programma) che finiva nel traceback e
+nei log. Ora `cmd` è `[programma]` soltanto, con `timeout`, `output` e `stderr` di prima, e l'eccezione non è
+concatenata a quella di subprocess (test `tests/test_secrets.py`, che fallisce su v0.1.0). Misurato anche: l'ambiente
+del chiamante non arriva al figlio (un token in `os.environ` non è nell'ambiente né nell'uscita del figlio).
+
 ## create_exclusive / create_private / private_tmpdir — `nucleo/files.py`
 
 Fonti: cryptovalid `verifier.create_private` (commit 809be6a, identica in f7883c9, `verifier.py` riga 448) e
@@ -87,6 +94,13 @@ profondità era un `RecursionError` nudo (3.9 e 3.11) ma era letto sotto 3.13; o
 com'era alla fine. Vale fino a 512 livelli: con `max_depth` più alto, oltre 512 decide il parser di ogni Python.
 Misurato: la scansione di un testo di ~4 milioni di caratteri alloca meno di 64 KiB (tracemalloc, test
 `ConstantMemory`).
+
+**Non rilasciato (28/11/2026): un testo che non è nella sua codifica non esce più dall'errore.** In v0.1.0 il
+`UnicodeDecodeError` era quello del decodificatore, il cui `object` è il testo intero, mostrato da `repr` (e da ogni log
+con `%r`): un file di chiave o un token letto come bytes usciva tutto. Ora l'errore ha lo stesso tipo, lo stesso
+messaggio e le stesse posizioni, e `object` tiene soltanto i byte rifiutati, al loro posto (prima di loro, zeri). Il
+`JSONDecodeError` di `json` non ripete il testo né nel messaggio né nel `repr`; il suo attributo `doc` lo tiene, come
+lo definisce Python, e non è cambiato.
 
 ## canonical_json — `nucleo/canonical.py`
 

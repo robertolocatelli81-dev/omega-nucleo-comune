@@ -37,3 +37,12 @@ python3 -m unittest discover -s tests -v
 checks its sha256); its vectors are not kept here (DIFFERENZE.md, section «Vettori di RFC 8785»).
 
 Where each function comes from and what changed: DIFFERENZE.md.
+
+## Unreleased
+
+- `run_program`: on a timeout, `subprocess.TimeoutExpired` names the program alone (`cmd` is `[program]`); in 0.1.0
+  its message repeated every argument, a password or a token given to the program included.
+- `json_loads_bounded`: bytes not in their encoding are a `UnicodeDecodeError` holding the bytes refused alone; in
+  0.1.0 its `repr` showed the whole text read (a key file, a token).
+- `tests/test_secrets.py`: a canary in every input that can hold a secret, searched in every output (both tests above
+  fail on 0.1.0). Each work that copies the core takes the change with `nucleo_sync.py copy`.

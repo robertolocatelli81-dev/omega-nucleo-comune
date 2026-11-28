@@ -108,11 +108,21 @@ def json_loads_bounded(s, max_depth: int = MAX_JSON_DEPTH, **kw):
     characters. Scanned as bytes, a UTF-16 text hid its brackets behind a code unit with the byte 0x22 or 0x5C
     (U+2201): 1 100 levels were read under Python 3.13 and a RecursionError under 3.9 (cryptovalid f7883c9).
     The parser is given the stack for the levels of the text, up to MAX_JSON_DEPTH (_RecursionHeadroom): with a
-    `max_depth` above 512, a text deeper than 512 is left to the limits of the parser of each Python."""
+    `max_depth` above 512, a text deeper than 512 is left to the limits of the parser of each Python. A text that is
+    not in its encoding is a UnicodeDecodeError with the message of the decoder, holding the bytes refused alone (the
+    text may be a key file: the decoder's own error repeats the whole of it in its repr)."""
     if isinstance(max_depth, bool) or not isinstance(max_depth, int) or max_depth < 0:
         raise ValueError("max_depth is an int >= 0")
     if isinstance(s, (bytes, bytearray)):
-        s = s.decode(json.detect_encoding(s), "surrogatepass")
+        try:
+            s = s.decode(json.detect_encoding(s), "surrogatepass")
+        except UnicodeDecodeError as e:
+            bad = e
+        else:
+            bad = None
+        if bad is not None:   # its object is the whole text, shown by repr: kept are the bytes refused, at their place
+            raise UnicodeDecodeError(bad.encoding, bytes(bad.start) + bad.object[bad.start:bad.end], bad.start, bad.end,
+                                     bad.reason)
     depth = json_nesting_depth(s) if isinstance(s, str) else 0
     if depth > max_depth:
         raise JsonTooDeepToRead("JSON nested deeper than %d levels" % max_depth)

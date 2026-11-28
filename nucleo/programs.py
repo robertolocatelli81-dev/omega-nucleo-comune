@@ -65,10 +65,12 @@ def run_program(argv: Sequence[str], *, env: Mapping[str, str], timeout: float, 
                 cwd: Optional[str] = None) -> "subprocess.CompletedProcess[bytes]":
     """Run argv[0], found by which_absolute, with argv[1:]: no shell, the environment `env` and nothing else, standard
     input empty (or `input`), output and errors captured as bytes, stopped after `timeout` seconds
-    (subprocess.TimeoutExpired, the child killed). FileNotFoundError when the program is not on an absolute folder of
-    PATH. The exit status is the caller's to read: a non-zero status is not an exception. On Windows a program found
-    as a .bat or .cmd file is a ValueError: the system hands a batch file to cmd.exe, which reads the arguments by the
-    rules of a shell (Python's subprocess documentation, "Security Considerations")."""
+    (subprocess.TimeoutExpired, the child killed; its cmd is [the program] alone: an argument may be a secret, a
+    password or a token given to the program, and subprocess's message repeats every argument). FileNotFoundError
+    when the program is not on an absolute folder of PATH. The exit status is the caller's to read: a non-zero status
+    is not an exception. On Windows a program found as a .bat or .cmd file is a ValueError: the system hands a batch
+    file to cmd.exe, which reads the arguments by the rules of a shell (Python's subprocess documentation, "Security
+    Considerations")."""
     if isinstance(argv, (str, bytes)) or not argv or not all(isinstance(a, str) for a in argv):
         raise TypeError("argv is a non-empty list of str")
     if not isinstance(env, Mapping) or not all(isinstance(k, str) and isinstance(v, str) for k, v in env.items()):
@@ -82,6 +84,11 @@ def run_program(argv: Sequence[str], *, env: Mapping[str, str], timeout: float, 
         raise FileNotFoundError("%s: not found on an absolute folder of PATH" % argv[0])
     if os.name == "nt" and exe.lower().endswith((".bat", ".cmd")):
         raise ValueError("%s is a batch file: Windows would run it through cmd.exe" % exe)
-    return subprocess.run(  # nosec B603 - absolute path from which_absolute, list argv, no shell
-        [exe, *argv[1:]], env=dict(env), timeout=timeout, cwd=cwd, shell=False, capture_output=True,
-        input=input, stdin=None if input is not None else subprocess.DEVNULL)
+    try:
+        return subprocess.run(  # nosec B603 - absolute path from which_absolute, list argv, no shell
+            [exe, *argv[1:]], env=dict(env), timeout=timeout, cwd=cwd, shell=False, capture_output=True,
+            input=input, stdin=None if input is not None else subprocess.DEVNULL)
+    except subprocess.TimeoutExpired as e:
+        late = e
+    # raised outside the handler, so nothing chains to subprocess's own error, whose message is the whole argv
+    raise subprocess.TimeoutExpired([exe], late.timeout, late.output, late.stderr)
